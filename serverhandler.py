@@ -6,11 +6,9 @@ import mcrcon #pip install mcrcon
 
 # server_run_command = "java -Xmx5G -Xms5G -jar server.jar nogui"
 server_run_command = "java -Xmx5G -Xms5G -jar server.jar nogui"
-server_location = "/home/ec2-user/minecraft-server"
-server_properties_filename = "server.properties"
+filename = os.path.dirname(os.path.realpath(__file__)) + '/../minecraft_server/server.properties'
 
-
-def getServerProperties(filename=os.path.join(server_location, server_properties_filename)):
+def getServerProperties(filename):
     server_properties = dict()
     with open(filename, "r") as fi:
         for line in fi.readlines():

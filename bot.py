@@ -313,7 +313,7 @@ async def activePlayerCheck():
 async def on_ready():
     print(f"{bot.user} has connected to Discord!")
     channel = bot.get_channel(int(configs.get("server_status_channel_id").data))
-    # await channel.send("Hello! Use the command !start to start the server, or !help to see what else I can do.")
+    await channel.send("Hello! Use the command !start to start the server, or !help to see what else I can do.")
 
 @bot.event
 async def on_message(message):
