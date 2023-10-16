@@ -6,9 +6,9 @@ import mcrcon #pip install mcrcon
 
 # server_run_command = "java -Xmx5G -Xms5G -jar server.jar nogui"
 server_run_command = "java -Xmx5G -Xms5G -jar server.jar nogui"
-filename = os.path.dirname(os.path.realpath(__file__)) + '/../minecraft_server/server.properties'
+filename = '/home/ec2-user/minecraft-server/server.properties'
 
-def getServerProperties(filename):
+def getServerProperties():
     server_properties = dict()
     with open(filename, "r") as fi:
         for line in fi.readlines():
@@ -46,7 +46,7 @@ class ServerHandler(object):
     def __init__(self):
         self.subprocess = None
         self.service_start_time = None
-        self.serverProperties = dict()
+        self.serverProperties = None
 
     def _closeNice(self):
         """
@@ -73,13 +73,19 @@ class ServerHandler(object):
         self.subprocess.kill()
 
     def start(self):
-        self.subprocess = subprocess.Popen(server_run_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        self.service_start_time = time.time()
+        if self.subprocess is not None:
+            return 1
         self.serverProperties = getServerProperties()
+        #initialise the subprocess to execute in another directory
+        self.subprocess = subprocess.Popen(server_run_command, cwd="/home/ec2-user/minecraft-server", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        self.service_start_time = time.time()
+        return 0
 
     def stop(self):
-        if not self._closeNice():
-            self._terminate()
+        if self._closeNice():
+            return 0
+        self._terminate()
+        return 1
 
     def uptimeAsString(self):
         if self.subprocess is None or self.service_start_time is None:  # should only ever be stopped by the first conditional
@@ -87,19 +93,13 @@ class ServerHandler(object):
         return time.strftime("%b %d %Y %H:%M:%S", time.gmtime(self.service_start_time))
 
     def sendRcon(self, command_string):
-        """
-        Rcon socket is only open for the duration of this method.
-        :param command_string:
-        :return:
-        """
         if self.subprocess is None:
-            return 1
+            raise ServerHandlerCommandFailure("Server is not running.")
+        if self.serverProperties["enable-rcon"] is False:
+            raise ServerHandlerCommandFailure("RCON is not enabled.")
         try:
-            with mcrcon.MCRcon("127.0.0.1", self.serverProperties["rcon.password"]) as mcr:
-                mcr.command(command_string)
-        except Exception as e:
-            print(e)
-            raise ServerHandlerCommandFailure(command_string)
-        return 0
-
-
+            with mcrcon.MCRcon(self.serverProperties["rcon.password"], "localhost", self.serverProperties["rcon.port"]) as mcr:
+                resp = mcr.command(command_string)
+                return resp
+        except socket.error:
+            raise ServerHandlerCommandFailure("RCON is not enabled.")
