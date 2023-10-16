@@ -260,7 +260,6 @@ async def serviceCheck():
     # if the service is not running, keep checking to see when it is, then update the server-status channel
 
     while not bot.is_closed():
-        
         if not service_active:
             try:
                 server = JavaServer.lookup("127.0.0.1:25565")
@@ -282,31 +281,38 @@ async def serviceCheck():
 
         await asyncio.sleep(60)  # check every 1 minute
 
-
-# active player check - turn off the server if people aren't on
+# create a check to see if there are any players online and if not, shut down the server
 async def activePlayerCheck():
-    global permanently_on
     global active_player_check_failed
     global service_active
-    await bot.wait_until_ready()
+    global watchdog_patted
+    global permanently_on
+    global stop_request_time
+    mcChannel = bot.get_channel(int(configs.get("server_status_channel_id").data))
+    devChannel = bot.get_channel(int(configs.get("automessage_channel_id").data))
+    # if the service is running, act as a watchdog and alert the dev channel if something goes wrong
+    # if the service is not running, keep checking to see when it is, then update the server-status channel
+
     while not bot.is_closed():
-        if not permanently_on:
-            try:
-                server = JavaServer.lookup("127.0.0.1:25565")
-                channel = bot.get_channel(configs.get("server_status_channel_id").data)
-                players_online = server.status().players.online
-                if players_online == 0:
-                    if active_player_check_failed:
-                        await channel.send("Server is shutting down due to zero current players. To restart, use !start")
+        try:
+            server = JavaServer.lookup("127.0.0.1:25565")
+            server_status = server.status()
+            current_players = server_status.players.online
+            if current_players == 0 and not permanently_on:
+                if not active_player_check_failed:
+                    active_player_check_failed = True
+                else:
+                    await mcChannel.send("No one is playing! Shutting down in 10 minutes.")
+                    await asyncio.sleep(600)
+                    if server_status.players.online == 0:
+                        await mcChannel.send("No one is playing! Shutting down now.")
                         service_active = False
                         mcserver.stop()
-                    else:
-                        active_player_check_failed = True
-                else:
-                    active_player_check_failed = False
-            except Exception as e:
-                print(e)
-        await asyncio.sleep(300)  # check every 5 minutes
+                        active_player_check_failed = False
+            else:
+                active_player_check_failed = False
+        except:
+            pass
 
 
 @bot.event
@@ -336,6 +342,10 @@ async def on_message(message):
     elif message.content == '!save':
         await bot.process_commands(message)
     elif message.content == '!_stop':
+        await bot.process_commands(message)
+    elif message.content == '!activePlayerCheck':
+        await bot.process_commands(message)
+    elif message.content == '!serviceCheck':
         await bot.process_commands(message)
     else:
         await message.channel.send("I don't understand that command. Try !help to see what I can do.")
