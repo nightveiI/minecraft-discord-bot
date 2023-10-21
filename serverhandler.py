@@ -4,8 +4,8 @@ import subprocess
 import time
 import mcrcon #pip install mcrcon
 
-# server_run_command = "java -Xmx5G -Xms5G -jar server.jar nogui"
-server_run_command = "java -Xmx5G -Xms5G -jar server.jar nogui"
+# server_run_command = "java -Xmx3G -Xms3G -jar server.jar nogui"
+server_run_command = "java -Xmx3G -Xms3G -jar server.jar nogui"
 filename = '/home/ec2-user/minecraft-server/server.properties'
 
 def getServerProperties():
